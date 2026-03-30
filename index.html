@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gacha Casino</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="auth-buttons" id="authButtons">
+        <button class="btn btn-ghost btn-sm" onclick="showModal('login')">Login</button>
+        <button class="btn btn-primary btn-sm" onclick="showModal('signup')">Sign Up</button>
+      </div>
+      <div class="user-info hidden" id="userInfo">
+        <span class="username" id="headerUsername"></span>
+        <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <div class="logo">GACHA</div>
+      <div class="silver-display" id="silverDisplay" onclick="goShop()" title="Click to buy Silver">
+        <span class="silver-icon">◈</span>
+        <span id="silverAmount">—</span>
+        <span class="silver-label">Silver</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <nav class="nav">
+        <button class="nav-btn active" onclick="showView('slot')">Casino</button>
+        <button class="nav-btn hidden" id="adminNavBtn" onclick="showView('admin')">Admin</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ── SLOT VIEW ── -->
+    <div class="view" id="viewSlot">
+      <div class="slot-container">
+        <h2 class="section-title">Slot Machine</h2>
+        <p class="section-subtitle">Match all 3 cases to win the item! &nbsp;Cost: <span class="silver-text">◈ 10 Silver</span> per spin</p>
+
+        <div class="slot-machine">
+          <div class="cases-row">
+
+            <div class="case" data-index="0">
+              <div class="case-inner">
+                <div class="case-item" id="case0">
+                  <div class="item-display empty"><span class="empty-icon">?</span></div>
+                </div>
+                <div class="case-tooltip" id="tooltip0"><div class="tooltip-inner"><div class="tooltip-name" id="tname0"></div><div class="tooltip-desc" id="tdesc0"></div></div></div>
+              </div>
+            </div>
+
+            <div class="case-divider">✦</div>
+
+            <div class="case" data-index="1">
+              <div class="case-inner">
+                <div class="case-item" id="case1">
+                  <div class="item-display empty"><span class="empty-icon">?</span></div>
+                </div>
+                <div class="case-tooltip" id="tooltip1"><div class="tooltip-inner"><div class="tooltip-name" id="tname1"></div><div class="tooltip-desc" id="tdesc1"></div></div></div>
+              </div>
+            </div>
+
+            <div class="case-divider">✦</div>
+
+            <div class="case" data-index="2">
+              <div class="case-inner">
+                <div class="case-item" id="case2">
+                  <div class="item-display empty"><span class="empty-icon">?</span></div>
+                </div>
+                <div class="case-tooltip" id="tooltip2"><div class="tooltip-inner"><div class="tooltip-name" id="tname2"></div><div class="tooltip-desc" id="tdesc2"></div></div></div>
+              </div>
+            </div>
+
+          </div><!-- /cases-row -->
+
+          <div class="spin-controls">
+            <button class="btn-spin" id="spinBtn" onclick="spin()">
+              SPIN &nbsp;<span class="spin-cost">◈ 10</span>
+            </button>
+          </div>
+        </div><!-- /slot-machine -->
+
+        <div class="win-banner hidden" id="winBanner">
+          <div class="win-title">🎉 YOU WIN!</div>
+          <div class="win-item" id="winItemDisplay"></div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('winBanner').classList.add('hidden')" style="margin-top:12px;">Dismiss</button>
+        </div>
+
+      </div>
+    </div><!-- /viewSlot -->
+
+    <!-- ── SHOP VIEW ── -->
+    <div class="view hidden" id="viewShop">
+      <div class="shop-container">
+        <h2 class="section-title">Silver Shop</h2>
+        <p class="section-subtitle">1 USD ≈ 10 Silver. Purchase below to top up your balance.</p>
+
+        <div class="packages-grid">
+          <div class="package-card" onclick="purchaseSilver(10,1)">
+            <div class="pkg-amount">◈ 10</div>
+            <div class="pkg-label">Silver</div>
+            <div class="pkg-price">$1.00</div>
+            <button class="btn btn-primary btn-full">Purchase</button>
+          </div>
+          <div class="package-card featured" onclick="purchaseSilver(55,5)">
+            <div class="pkg-badge">Best Value</div>
+            <div class="pkg-amount">◈ 55</div>
+            <div class="pkg-label">Silver</div>
+            <div class="pkg-price">$5.00</div>
+            <button class="btn btn-primary btn-full">Purchase</button>
+          </div>
+          <div class="package-card" onclick="purchaseSilver(120,10)">
+            <div class="pkg-amount">◈ 120</div>
+            <div class="pkg-label">Silver</div>
+            <div class="pkg-price">$10.00</div>
+            <button class="btn btn-primary btn-full">Purchase</button>
+          </div>
+          <div class="package-card" onclick="purchaseSilver(650,50)">
+            <div class="pkg-amount">◈ 650</div>
+            <div class="pkg-label">Silver</div>
+            <div class="pkg-price">$50.00</div>
+            <button class="btn btn-primary btn-full">Purchase</button>
+          </div>
+        </div>
+
+        <p class="shop-note">This is a demo — no real charges are made.</p>
+        <button class="btn btn-ghost" onclick="showView('slot')">← Back to Casino</button>
+      </div>
+    </div><!-- /viewShop -->
+
+    <!-- ── ADMIN VIEW ── -->
+    <div class="view hidden" id="viewAdmin">
+      <div class="admin-container">
+        <h2 class="section-title">Admin Panel</h2>
+
+        <div class="admin-grid">
+
+          <!-- Add Item -->
+          <div class="admin-card">
+            <h3 class="admin-card-title">Add Item / Account</h3>
+            <form id="addItemForm" onsubmit="addItem(event)">
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="itemName" placeholder="e.g. Shadow Blade" required>
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <textarea id="itemDesc" rows="3" placeholder="Short description shown on hover..."></textarea>
+              </div>
+              <div class="form-group">
+                <label>Type</label>
+                <select id="itemType">
+                  <option value="item">Item</option>
+                  <option value="account">Account</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Rarity</label>
+                <select id="itemRarity">
+                  <option value="common">Common</option>
+                  <option value="uncommon">Uncommon</option>
+                  <option value="item_rarity">Item (Rainbow)</option>
+                  <option value="rare">Rare</option>
+                  <option value="legendary">Legendary</option>
+                  <option value="mythical">Mythical</option>
+                  <option value="spec">Spec</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary btn-full">Add to Pool</button>
+            </form>
+          </div>
+
+          <!-- Pool -->
+          <div class="admin-card">
+            <h3 class="admin-card-title">Item Pool <span class="pool-count" id="poolCount">(0)</span></h3>
+            <div class="item-pool" id="itemPool">
+              <p class="empty-state">No items yet.</p>
+            </div>
+          </div>
+
+          <!-- Users -->
+          <div class="admin-card admin-wide">
+            <h3 class="admin-card-title">Registered Users</h3>
+            <div class="table-wrap">
+              <table class="users-table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Silver</th>
+                    <th>Wins</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /admin-grid -->
+
+        <button class="btn btn-ghost" onclick="showView('slot')" style="margin-top:8px;">← Back to Casino</button>
+      </div>
+    </div><!-- /viewAdmin -->
+
+  </main>
+
+  <!-- ── LOGIN MODAL ── -->
+  <div class="modal-overlay hidden" id="modalLogin" onclick="overlayClose(event,'login')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Login</h2>
+        <button class="modal-close" onclick="hideModal('login')">✕</button>
+      </div>
+      <form onsubmit="login(event)">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="loginUsername" placeholder="Your username" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" placeholder="Your password" required>
+        </div>
+        <div class="form-error hidden" id="loginError"></div>
+        <button type="submit" class="btn btn-primary btn-full">Login</button>
+        <p class="modal-switch">No account? <a href="#" onclick="switchModal('login','signup')">Sign Up</a></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── SIGNUP MODAL ── -->
+  <div class="modal-overlay hidden" id="modalSignup" onclick="overlayClose(event,'signup')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Create Account</h2>
+        <button class="modal-close" onclick="hideModal('signup')">✕</button>
+      </div>
+      <form onsubmit="signup(event)">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="signupEmail" placeholder="you@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="signupUsername" placeholder="Choose a username" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="signupPassword" placeholder="Min 8 chars + special char" required oninput="updateHints()">
+          <div class="hints">
+            <span class="hint" id="hintLen">8+ characters</span>
+            <span class="hint" id="hintSpec">Special character</span>
+          </div>
+        </div>
+        <div class="form-error hidden" id="signupError"></div>
+        <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+        <p class="modal-switch">Have an account? <a href="#" onclick="switchModal('signup','login')">Login</a></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── NOTIFICATION ── -->
+  <div class="notification hidden" id="notification">
+    <span id="notifText"></span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
