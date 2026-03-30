@@ -4,7 +4,7 @@
 //  CONSTANTS
 // ================================================================
 
-const SPIN_COST = 10;
+const SPIN_COST = 35; // ~25–50 silver range
 
 const RARITIES = {
   common:      { name: 'Common',    color: '#9e9e9e', cls: 'rarity-common',      peCls: 'pe-common'     },
@@ -15,6 +15,31 @@ const RARITIES = {
   mythical:    { name: 'Mythical',  color: '#ff8c00', cls: 'rarity-mythical',    peCls: 'pe-mythical'   },
   spec:        { name: 'Spec',      color: '#dc143c', cls: 'rarity-spec',        peCls: 'pe-spec'       },
 };
+
+// Win chance: 10% of all spins are potential triples
+const WIN_CHANCE = 0.10;
+
+// Weighted rarity odds (within the 10% winning spins) — must sum to ~100
+const RARITY_WEIGHTS = [
+  { rarity: 'common',      weight: 44.44 },
+  { rarity: 'uncommon',    weight: 30    },
+  { rarity: 'item_rarity', weight: 20    },
+  { rarity: 'rare',        weight: 5     },
+  { rarity: 'legendary',   weight: 0.5   },
+  { rarity: 'mythical',    weight: 0.05  },
+  { rarity: 'spec',        weight: 0.01  },
+];
+
+// Rarity weights for LOSING spins — higher rarity = less likely to appear
+const LOSE_RARITY_WEIGHTS = [
+  { rarity: 'common',      weight: 40 },
+  { rarity: 'uncommon',    weight: 28 },
+  { rarity: 'item_rarity', weight: 18 },
+  { rarity: 'rare',        weight: 9  },
+  { rarity: 'legendary',   weight: 3.5 },
+  { rarity: 'mythical',    weight: 1  },
+  { rarity: 'spec',        weight: 0.5 },
+];
 
 // ================================================================
 //  STORAGE
@@ -282,6 +307,67 @@ async function spinReel(index, finalItem, stopMs) {
   });
 }
 
+// ── Weighted helpers ──
+
+function weightedPickRarity(weights) {
+  const total = weights.reduce((s, w) => s + w.weight, 0);
+  let roll = Math.random() * total;
+  for (const entry of weights) {
+    roll -= entry.weight;
+    if (roll <= 0) return entry.rarity;
+  }
+  return weights[weights.length - 1].rarity; // fallback
+}
+
+function itemsOfRarity(pool, rarity) {
+  return pool.filter(i => i.rarity === rarity);
+}
+
+function pickRandomFrom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function pickLoseItem(pool) {
+  // Weighted rarity pick, then random item within that rarity
+  // If no items exist for the chosen rarity, fall through to any item
+  const rarity = weightedPickRarity(LOSE_RARITY_WEIGHTS);
+  const bucket = itemsOfRarity(pool, rarity);
+  if (bucket.length > 0) return pickRandomFrom(bucket);
+  return pickRandomFrom(pool); // fallback
+}
+
+function generateResults(pool) {
+  const roll = Math.random();
+
+  if (roll < WIN_CHANCE) {
+    // ── WINNING SPIN: pick rarity, fill all 3 slots with items of that rarity ──
+    const chosenRarity = weightedPickRarity(RARITY_WEIGHTS);
+    const bucket = itemsOfRarity(pool, chosenRarity);
+
+    if (bucket.length > 0) {
+      // Each slot picks independently from the same rarity bucket
+      // All 3 must be the same *item* to count as a win, so pick one and duplicate
+      const winItem = pickRandomFrom(bucket);
+      return { results: [winItem, winItem, winItem], isWin: true };
+    }
+    // No items of that rarity in the pool — fall through to a losing spin
+  }
+
+  // ── LOSING SPIN: 3 different items, rarity-weighted ──
+  const r0 = pickLoseItem(pool);
+  let r1 = pickLoseItem(pool);
+  let r2 = pickLoseItem(pool);
+
+  // Ensure not all 3 are the same item (prevent accidental wins)
+  let safety = 20;
+  while (r0.id === r1.id && r1.id === r2.id && safety-- > 0) {
+    r1 = pickLoseItem(pool);
+    r2 = pickLoseItem(pool);
+  }
+
+  return { results: [r0, r1, r2], isWin: false };
+}
+
 async function spin() {
   if (isSpinning) return;
   if (!currentUser) { showModal('login'); return; }
@@ -299,9 +385,8 @@ async function spin() {
   isSpinning = true;
   document.getElementById('spinBtn').disabled = true;
 
-  // Pick results
-  const pick = () => pool[Math.floor(Math.random() * pool.length)];
-  const results = [pick(), pick(), pick()];
+  // Generate weighted results
+  const { results, isWin } = generateResults(pool);
 
   await Promise.all([
     spinReel(0, results[0], 1500),
@@ -312,8 +397,7 @@ async function spin() {
   isSpinning = false;
   document.getElementById('spinBtn').disabled = false;
 
-  // Win check: all 3 match
-  if (results[0].id === results[1].id && results[1].id === results[2].id) {
+  if (isWin) {
     awardWin(results[0]);
   }
 }
