@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gacha Casino</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ===== HEADER ===== -->
+    <header class="header">
+      <div class="header-left">
+        <div id="auth-section" class="auth-section"></div>
+      </div>
+      <div class="header-center">
+        <div class="logo">
+          <span class="logo-gem">◈</span>
+          <div class="logo-text-wrap">
+            <span class="logo-main">GACHA</span>
+            <span class="logo-sub">CASINO</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="silver-display" class="silver-display"></div>
+      </div>
+    </header>
+
+    <!-- ===== NAV ===== -->
+    <nav class="nav" id="main-nav"></nav>
+
+    <!-- ===== VIEWS ===== -->
+    <main class="content">
+
+      <!-- MAIN / SLOT MACHINE -->
+      <section id="view-main" class="view active">
+        <div class="slot-section">
+          <div class="slot-header">
+            <h2 class="slot-title">SLOT MACHINE</h2>
+            <p class="slot-subtitle">Match all 3 to win &nbsp;·&nbsp; 10 Silver per spin</p>
+          </div>
+
+          <div class="slot-machine">
+            <!-- Win glow bar -->
+            <div class="win-bar" id="win-bar"></div>
+
+            <div class="reels">
+              <!-- Reel 0 -->
+              <div class="reel-wrapper">
+                <div class="reel-window" id="reel-0">
+                  <div class="reel-fade-top"></div>
+                  <div class="reel-item-display" id="reel-display-0">
+                    <span class="reel-placeholder">◈</span>
+                  </div>
+                  <div class="reel-fade-bottom"></div>
+                </div>
+                <div class="reel-tooltip" id="reel-tooltip-0"></div>
+              </div>
+
+              <!-- Reel 1 -->
+              <div class="reel-wrapper">
+                <div class="reel-window" id="reel-1">
+                  <div class="reel-fade-top"></div>
+                  <div class="reel-item-display" id="reel-display-1">
+                    <span class="reel-placeholder">◈</span>
+                  </div>
+                  <div class="reel-fade-bottom"></div>
+                </div>
+                <div class="reel-tooltip" id="reel-tooltip-1"></div>
+              </div>
+
+              <!-- Reel 2 -->
+              <div class="reel-wrapper">
+                <div class="reel-window" id="reel-2">
+                  <div class="reel-fade-top"></div>
+                  <div class="reel-item-display" id="reel-display-2">
+                    <span class="reel-placeholder">◈</span>
+                  </div>
+                  <div class="reel-fade-bottom"></div>
+                </div>
+                <div class="reel-tooltip" id="reel-tooltip-2"></div>
+              </div>
+            </div>
+
+            <div class="slot-controls">
+              <button id="spin-btn" class="btn btn-spin" onclick="spin()">
+                <span id="spin-btn-text">LOGIN TO SPIN</span>
+              </button>
+              <div id="spin-message" class="spin-message"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LOGIN -->
+      <section id="view-login" class="view">
+        <div class="auth-container">
+          <div class="auth-card">
+            <h2>Welcome Back</h2>
+            <p class="auth-desc">Sign in to your Gacha account</p>
+            <form id="login-form" class="auth-form" autocomplete="off">
+              <div class="form-group">
+                <label for="login-username">Username</label>
+                <input type="text" id="login-username" placeholder="Enter your username" autocomplete="username" />
+              </div>
+              <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" placeholder="Enter your password" autocomplete="current-password" />
+              </div>
+              <div id="login-error" class="form-error hidden"></div>
+              <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+            </form>
+            <p class="auth-switch">New here? <a href="#" class="auth-link" onclick="showView('register'); return false;">Create an account</a></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- REGISTER -->
+      <section id="view-register" class="view">
+        <div class="auth-container">
+          <div class="auth-card">
+            <h2>Join Gacha</h2>
+            <p class="auth-desc">Create your account and start playing</p>
+            <form id="register-form" class="auth-form" autocomplete="off">
+              <div class="form-group">
+                <label for="reg-email">Email</label>
+                <input type="email" id="reg-email" placeholder="your@email.com" autocomplete="email" />
+              </div>
+              <div class="form-group">
+                <label for="reg-username">Username</label>
+                <input type="text" id="reg-username" placeholder="Choose a unique username" autocomplete="username" />
+              </div>
+              <div class="form-group">
+                <label for="reg-password">Password</label>
+                <input type="password" id="reg-password" placeholder="Min 8 chars + 1 special character" autocomplete="new-password" />
+                <div class="pw-reqs">
+                  <span id="req-length" class="req">✗ At least 8 characters</span>
+                  <span id="req-special" class="req">✗ At least 1 special character</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="reg-confirm">Confirm Password</label>
+                <input type="password" id="reg-confirm" placeholder="Repeat your password" autocomplete="new-password" />
+              </div>
+              <div id="register-error" class="form-error hidden"></div>
+              <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+            </form>
+            <p class="auth-switch">Already have an account? <a href="#" class="auth-link" onclick="showView('login'); return false;">Sign in</a></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SILVER SHOP -->
+      <section id="view-shop" class="view">
+        <div class="shop-container">
+          <h2 class="section-title">Silver Shop</h2>
+          <p class="section-subtitle">Purchase Silver to keep spinning · $1 ≈ 10 Silver</p>
+          <div class="shop-packages">
+
+            <div class="shop-package">
+              <div class="pkg-icon">🪙</div>
+              <div class="pkg-amount">100 Silver</div>
+              <div class="pkg-bonus">&nbsp;</div>
+              <div class="pkg-price">$1.00</div>
+              <button class="btn btn-primary" onclick="purchaseSilver(100, 1.00)">Purchase</button>
+            </div>
+
+            <div class="shop-package featured">
+              <div class="pkg-badge">POPULAR</div>
+              <div class="pkg-icon">🪙</div>
+              <div class="pkg-amount">550 Silver</div>
+              <div class="pkg-bonus">+50 bonus</div>
+              <div class="pkg-price">$5.00</div>
+              <button class="btn btn-primary" onclick="purchaseSilver(550, 5.00)">Purchase</button>
+            </div>
+
+            <div class="shop-package">
+              <div class="pkg-icon">🪙</div>
+              <div class="pkg-amount">1,200 Silver</div>
+              <div class="pkg-bonus">+200 bonus</div>
+              <div class="pkg-price">$10.00</div>
+              <button class="btn btn-primary" onclick="purchaseSilver(1200, 10.00)">Purchase</button>
+            </div>
+
+            <div class="shop-package">
+              <div class="pkg-icon">💎</div>
+              <div class="pkg-amount">2,500 Silver</div>
+              <div class="pkg-bonus">+500 bonus</div>
+              <div class="pkg-price">$20.00</div>
+              <button class="btn btn-primary" onclick="purchaseSilver(2500, 20.00)">Purchase</button>
+            </div>
+
+          </div>
+          <div id="shop-msg" class="shop-msg hidden"></div>
+        </div>
+      </section>
+
+      <!-- ADMIN PANEL -->
+      <section id="view-admin" class="view">
+        <div class="admin-container">
+          <h2 class="section-title">Admin Panel <span class="admin-badge-title">ADMIN</span></h2>
+          <div class="admin-layout">
+
+            <!-- Add/Edit form -->
+            <div class="admin-form-panel">
+              <h3>Add / Edit Item</h3>
+              <form id="item-form" class="admin-form">
+                <input type="hidden" id="item-id" />
+                <div class="form-group">
+                  <label for="item-name">Name</label>
+                  <input type="text" id="item-name" placeholder="Item or account name" />
+                </div>
+                <div class="form-group">
+                  <label for="item-desc">Description</label>
+                  <textarea id="item-desc" placeholder="Brief description…"></textarea>
+                </div>
+                <div class="form-group">
+                  <label for="item-icon">Icon (emoji)</label>
+                  <input type="text" id="item-icon" placeholder="e.g. ⚔️  🎮  👑" />
+                </div>
+                <div class="form-group">
+                  <label for="item-type">Type</label>
+                  <select id="item-type">
+                    <option value="item">Item</option>
+                    <option value="account">Account</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="item-rarity">Rarity</label>
+                  <select id="item-rarity">
+                    <option value="common">Common</option>
+                    <option value="uncommon">Uncommon</option>
+                    <option value="rare">Rare</option>
+                    <option value="legendary">Legendary</option>
+                    <option value="item">Item (Rainbow)</option>
+                    <option value="mythical">Mythical</option>
+                    <option value="spec">Spec</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="item-qty">Quantity (stock)</label>
+                  <input type="number" id="item-qty" value="1" min="1" />
+                </div>
+                <div class="admin-form-btns">
+                  <button type="submit" class="btn btn-primary">Save Item</button>
+                  <button type="button" class="btn btn-secondary" onclick="clearItemForm()">Clear</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Item list -->
+            <div class="admin-list-panel">
+              <div class="admin-list-head">
+                <h3>Inventory &mdash; <span id="item-count">0</span> items</h3>
+              </div>
+              <div id="admin-item-list" class="admin-item-list"></div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- USER INVENTORY -->
+      <section id="view-inventory" class="view">
+        <div class="inventory-container">
+          <h2 class="section-title">My Inventory</h2>
+          <p class="section-subtitle">Items and accounts you've won from the slot machine</p>
+          <div id="user-inv-list" class="user-inv-list"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
