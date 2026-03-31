@@ -95,14 +95,33 @@ async function apiRequest(method, path, body) {
   const token = getToken();
   if (token) headers['Authorization'] = 'Bearer ' + token;
 
-  const res = await fetch(API + path, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const url = API + path;
+  let res;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (networkErr) {
+    console.error(`[fetch] ${method} ${url} → network error:`, networkErr);
+    throw new Error('Cannot reach the server. Make sure the backend is running on ' + API);
+  }
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed.');
+  let data;
+  try {
+    data = await res.json();
+  } catch (parseErr) {
+    console.error(`[fetch] ${method} ${url} → non-JSON response (status ${res.status})`);
+    throw new Error('Unexpected server response (status ' + res.status + ').');
+  }
+
+  if (!res.ok) {
+    console.warn(`[fetch] ${method} ${url} → ${res.status}`, data);
+    throw new Error(data.error || 'Request failed.');
+  }
+
+  console.debug(`[fetch] ${method} ${url} → ${res.status} OK`);
   return data;
 }
 

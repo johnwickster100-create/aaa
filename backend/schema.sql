@@ -10,10 +10,13 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified BOOLEAN      NOT NULL DEFAULT FALSE,
   created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 
-  CONSTRAINT users_email_unique    UNIQUE (LOWER(email)),
-  CONSTRAINT users_username_unique UNIQUE (LOWER(username)),
-  CONSTRAINT silver_non_negative   CHECK  (silver_balance >= 0)
+  CONSTRAINT silver_non_negative CHECK (silver_balance >= 0)
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_email_lower    ON users (LOWER(email));
-CREATE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username));
+-- Case-insensitive uniqueness enforced via expression indexes
+-- (inline UNIQUE(expr) in CREATE TABLE requires PG 15+; use indexes for compat)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower
+  ON users (LOWER(email));
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower
+  ON users (LOWER(username));
