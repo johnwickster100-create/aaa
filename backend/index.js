@@ -1,5 +1,7 @@
 'use strict';
-require('dotenv').config();
+const path = require('path');
+// Load .env from the backend directory regardless of where node was launched from
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const express = require('express');
 const cors    = require('cors');
@@ -29,7 +31,18 @@ app.use('/api/auth', authRouter);
 // Health check
 app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
-// 404 catch-all
+// ── Serve frontend static files ───────────────────────────────────
+// index.html, style.css, app.js live one directory up from backend/
+const FRONTEND_DIR = path.join(__dirname, '..');
+app.use(express.static(FRONTEND_DIR));
+
+// Fallback: any unmatched route serves index.html (SPA behaviour)
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
+});
+
+// 404 for unmatched API routes (must come before the static handler above
+// in real usage, but API routes are already mounted so this is just a safety net)
 app.use((req, res) => {
   console.warn(`[404] ${req.method} ${req.path}`);
   res.status(404).json({ error: 'Not found.' });

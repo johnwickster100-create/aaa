@@ -4,7 +4,8 @@
 //  CONSTANTS
 // ================================================================
 
-const API            = 'http://localhost:3001/api';
+// Relative path — works on any host/port because the backend serves the frontend
+const API            = '/api';
 const SPIN_COST      = 50;
 const ADMIN_USERNAME = 'GodlyAncientChampion';
 
@@ -105,7 +106,7 @@ async function apiRequest(method, path, body) {
     });
   } catch (networkErr) {
     console.error(`[fetch] ${method} ${url} → network error:`, networkErr);
-    throw new Error('Cannot reach the server. Make sure the backend is running on ' + API);
+    throw new Error('Cannot reach the server. Is the backend running?');
   }
 
   let data;
