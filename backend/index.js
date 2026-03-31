@@ -24,26 +24,6 @@ app.use((req, _res, next) => {
   next();
 });
 
-// ── /config.js  — dynamic API base URL detection ─────────────────
-// The browser loads this script BEFORE app.js.  It sets window.GACHA_API
-// to the correct URL regardless of whether the app is accessed directly,
-// through a cloud proxy, or any other reverse-proxy setup.
-app.get('/config.js', (req, res) => {
-  // Honour standard proxy headers so the URL is always the external one.
-  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-  const host  = req.headers['x-forwarded-host']  || req.headers.host || `localhost:${PORT}`;
-
-  // If the host is plain localhost / 127.0.0.1 we can use a relative path;
-  // for every other host (cloud proxy, ngrok, etc.) we need an absolute URL
-  // so the browser knows exactly where to send API requests.
-  const isLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
-  const apiBase = isLocal ? '' : `${proto}://${host}`;
-
-  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store');
-  res.send(`window.GACHA_API = ${JSON.stringify(apiBase + '/api')};`);
-});
-
 // ── API routes ────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
 

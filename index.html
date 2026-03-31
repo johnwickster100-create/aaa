@@ -491,9 +491,18 @@
     <span id="notifText"></span>
   </div>
 
-  <!-- config.js is served dynamically by the backend and sets window.GACHA_API
-       to the correct API base URL for any hosting environment (local / proxy / cloud) -->
-  <script src="/config.js"></script>
+  <script>
+    // Detect the correct API base URL at runtime — no hardcoded hosts.
+    // • Standard HTTPS (port 443 / empty): the reverse proxy handles /api routing → use relative path.
+    // • Port 3001 directly (backend serves everything): relative /api also works.
+    // • Any other local port (dev file server, etc.): point explicitly at port 3001 on the same host.
+    (function () {
+      var p = window.location.port;
+      window.GACHA_API = (p === '' || p === '443' || p === '80' || p === '3001')
+        ? '/api'
+        : (window.location.protocol + '//' + window.location.hostname + ':3001/api');
+    }());
+  </script>
   <script src="app.js"></script>
 </body>
 </html>
