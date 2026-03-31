@@ -16,13 +16,16 @@ app.use((req, _res, next) => {
   next();
 });
 
-// ── Middleware ────────────────────────────────────────────────────
+// ── CORS ──────────────────────────────────────────────────────────
+// Allow all origins — auth uses Bearer tokens, not cookies, so credentials
+// mode is unnecessary and wildcard + credentials:true is rejected by browsers.
 app.use(cors({
-  origin: process.env.FRONTEND_ORIGIN || '*',
-  methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+  origin: '*',
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
 }));
+// Respond to OPTIONS preflight on every route immediately
+app.options('*', cors());
 app.use(express.json());
 
 // ── Routes ────────────────────────────────────────────────────────

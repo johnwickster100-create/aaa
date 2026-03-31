@@ -127,17 +127,10 @@ async function apiRequest(method, path, body) {
 }
 
 // ================================================================
-//  18+ DISCLAIMER
+//  18+ DISCLAIMER  — shown on every page load, no localStorage skip
 // ================================================================
 
-const DISCLAIMER_KEY = 'gacha_18_accepted';
-
-function hasAcceptedDisclaimer() {
-  return localStorage.getItem(DISCLAIMER_KEY) === '1';
-}
-
 function acceptDisclaimer() {
-  localStorage.setItem(DISCLAIMER_KEY, '1');
   document.getElementById('modalDisclaimer').classList.add('hidden');
   initAfterDisclaimer();
 }
@@ -147,12 +140,8 @@ function acceptDisclaimer() {
 // ================================================================
 
 async function init() {
-  if (!hasAcceptedDisclaimer()) {
-    // Show disclaimer — block everything until accepted
-    document.getElementById('modalDisclaimer').classList.remove('hidden');
-    return;
-  }
-  await initAfterDisclaimer();
+  // Always show the 18+ disclaimer first — blocks everything until accepted
+  document.getElementById('modalDisclaimer').classList.remove('hidden');
 }
 
 async function initAfterDisclaimer() {
