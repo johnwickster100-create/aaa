@@ -4,9 +4,9 @@
 //  CONSTANTS
 // ================================================================
 
-const API = 'http://localhost:3001/api';
-
-const SPIN_COST = 35;
+const API            = 'http://localhost:3001/api';
+const SPIN_COST      = 50;
+const ADMIN_USERNAME = 'GodlyAncientChampion';
 
 const RARITIES = {
   common:      { name: 'Common',    color: '#9e9e9e', cls: 'rarity-common',      peCls: 'pe-common'     },
@@ -18,10 +18,8 @@ const RARITIES = {
   spec:        { name: 'Spec',      color: '#dc143c', cls: 'rarity-spec',        peCls: 'pe-spec'       },
 };
 
-// Win chance: 10% of all spins are potential triples
 const WIN_CHANCE = 0.10;
 
-// Weighted rarity odds (within the 10% winning spins) — must sum to ~100
 const RARITY_WEIGHTS = [
   { rarity: 'common',      weight: 44.44 },
   { rarity: 'uncommon',    weight: 30    },
@@ -32,7 +30,6 @@ const RARITY_WEIGHTS = [
   { rarity: 'spec',        weight: 0.01  },
 ];
 
-// Rarity weights for LOSING spins — higher rarity = less likely to appear
 const LOSE_RARITY_WEIGHTS = [
   { rarity: 'common',      weight: 40  },
   { rarity: 'uncommon',    weight: 28  },
@@ -44,21 +41,49 @@ const LOSE_RARITY_WEIGHTS = [
 ];
 
 // ================================================================
-//  STORAGE  (item pool stays in localStorage; auth moves to backend)
+//  STORAGE
 // ================================================================
 
 function getPool()   { return JSON.parse(localStorage.getItem('gacha_pool') || '[]'); }
 function savePool(p) { localStorage.setItem('gacha_pool', JSON.stringify(p)); }
 
 function getToken()       { return localStorage.getItem('gacha_jwt') || null; }
-function saveToken(token) { localStorage.setItem('gacha_jwt', token); }
+function saveToken(t)     { localStorage.setItem('gacha_jwt', t); }
 function clearToken()     { localStorage.removeItem('gacha_jwt'); }
+
+// Per-user history keys
+function txKey()    { return 'gacha_tx_'    + (currentUser?.id ?? 'anon'); }
+function spinKey()  { return 'gacha_spins_' + (currentUser?.id ?? 'anon'); }
+function getTxs()   { return JSON.parse(localStorage.getItem(txKey())   || '[]'); }
+function getSpins() { return JSON.parse(localStorage.getItem(spinKey()) || '[]'); }
+
+function logTx(delta, label) {
+  if (!currentUser) return;
+  const txs = getTxs();
+  txs.unshift({ ts: Date.now(), delta, label, balance: currentUser.silver_balance });
+  if (txs.length > 150) txs.length = 150;
+  localStorage.setItem(txKey(), JSON.stringify(txs));
+}
+
+function logSpin(items, isWin, winItem) {
+  if (!currentUser) return;
+  const spins = getSpins();
+  spins.unshift({
+    ts: Date.now(),
+    slots: items.map(i => ({ name: i.name, rarity: i.rarity })),
+    isWin,
+    winItem: winItem ? { name: winItem.name, rarity: winItem.rarity } : null,
+    cost: SPIN_COST,
+  });
+  if (spins.length > 200) spins.length = 200;
+  localStorage.setItem(spinKey(), JSON.stringify(spins));
+}
 
 // ================================================================
 //  STATE
 // ================================================================
 
-let currentUser = null;  // shape: { id, email, username, silver_balance, email_verified }
+let currentUser = null;
 let isSpinning  = false;
 
 // ================================================================
@@ -86,11 +111,10 @@ async function apiRequest(method, path, body) {
 // ================================================================
 
 async function init() {
-  renderHeader();         // render immediately (logged-out state)
+  renderHeader();
   showView('slot');
   renderPool();
 
-  // Restore session if a token exists
   const token = getToken();
   if (token) {
     try {
@@ -98,10 +122,12 @@ async function init() {
       currentUser = user;
       renderHeader();
     } catch {
-      // Token expired / invalid — clear it silently
       clearToken();
     }
   }
+
+  // Close user menu when clicking anywhere else
+  document.addEventListener('click', () => closeUserMenu());
 }
 
 // ================================================================
@@ -110,17 +136,19 @@ async function init() {
 
 function renderHeader() {
   const $ = id => document.getElementById(id);
+
   if (currentUser) {
     $('authButtons').classList.add('hidden');
     $('userInfo').classList.remove('hidden');
     $('headerUsername').textContent = currentUser.username;
     $('silverAmount').textContent   = currentUser.silver_balance.toLocaleString();
-    $('adminNavBtn').classList.add('hidden'); // admin UI coming in a later step
+
+    const adminBtn = $('adminMenuBtn');
+    if (adminBtn) adminBtn.classList.toggle('hidden', currentUser.username !== ADMIN_USERNAME);
   } else {
     $('authButtons').classList.remove('hidden');
     $('userInfo').classList.add('hidden');
     $('silverAmount').textContent = '—';
-    $('adminNavBtn').classList.add('hidden');
   }
 }
 
@@ -128,6 +156,27 @@ function refreshSilver() {
   if (currentUser) {
     document.getElementById('silverAmount').textContent = currentUser.silver_balance.toLocaleString();
   }
+}
+
+// ================================================================
+//  USER MENU DROPDOWN
+// ================================================================
+
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('userMenu');
+  menu.classList.toggle('hidden');
+}
+
+function closeUserMenu() {
+  const menu = document.getElementById('userMenu');
+  if (menu) menu.classList.add('hidden');
+}
+
+function openAdmin() {
+  closeUserMenu();
+  if (currentUser?.username !== ADMIN_USERNAME) return;
+  showView('admin');
 }
 
 // ================================================================
@@ -165,7 +214,7 @@ function overlayClose(e, type) { if (e.target === e.currentTarget) hideModal(typ
 function switchModal(from, to) { hideModal(from); showModal(to); }
 
 // ================================================================
-//  PASSWORD HINTS
+//  PASSWORD HINTS (signup)
 // ================================================================
 
 function updateHints() {
@@ -183,7 +232,6 @@ async function signup(e) {
   const email    = document.getElementById('signupEmail').value.trim();
   const username = document.getElementById('signupUsername').value.trim();
   const password = document.getElementById('signupPassword').value;
-
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true;
 
@@ -210,7 +258,6 @@ async function login(e) {
   e.preventDefault();
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
-
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true;
 
@@ -234,11 +281,120 @@ async function login(e) {
 // ================================================================
 
 function logout() {
+  closeUserMenu();
   currentUser = null;
   clearToken();
   renderHeader();
   showView('slot');
   notify('Logged out.', 'info');
+}
+
+// ================================================================
+//  SETTINGS MODAL
+// ================================================================
+
+function openSettings() {
+  closeUserMenu();
+  if (!currentUser) return;
+
+  document.getElementById('setUsername').textContent = currentUser.username;
+  document.getElementById('setEmail').textContent    = currentUser.email;
+  document.getElementById('unverifiedDot').classList.toggle('hidden', !!currentUser.email_verified);
+
+  // Reset change-pw form
+  document.getElementById('changePwBox').classList.add('hidden');
+  ['cpCurrent', 'cpNew', 'cpConfirm'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = '';
+    el.type  = 'password';
+  });
+  document.querySelectorAll('.pw-eye').forEach(b => b.textContent = '👁');
+
+  renderTxHistory();
+  renderSpinHistory();
+  showModal('settings');
+}
+
+function toggleChangePwForm() {
+  const box = document.getElementById('changePwBox');
+  box.classList.toggle('hidden');
+  const errEl = document.getElementById('changePwError');
+  errEl.classList.add('hidden');
+  errEl.textContent = '';
+}
+
+function togglePwField(id, btn) {
+  const input = document.getElementById(id);
+  if (input.type === 'password') { input.type = 'text';     btn.textContent = '🙈'; }
+  else                           { input.type = 'password'; btn.textContent = '👁'; }
+}
+
+async function changePassword() {
+  const current = document.getElementById('cpCurrent').value;
+  const newPw   = document.getElementById('cpNew').value;
+  const confirm = document.getElementById('cpConfirm').value;
+
+  if (!current || !newPw || !confirm) { showErr('changePwError', 'All fields are required.'); return; }
+  if (newPw !== confirm)              { showErr('changePwError', 'New passwords do not match.'); return; }
+
+  const btn = document.getElementById('changePwBtn');
+  btn.disabled = true;
+  try {
+    await apiRequest('PATCH', '/auth/password', { currentPassword: current, newPassword: newPw });
+    notify('Password updated!', 'success');
+    toggleChangePwForm();
+  } catch (err) {
+    showErr('changePwError', err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderTxHistory() {
+  const el = document.getElementById('txList');
+  if (!el || !currentUser) return;
+  const txs = getTxs();
+
+  if (txs.length === 0) { el.innerHTML = '<p class="empty-state">No transactions yet.</p>'; return; }
+
+  el.innerHTML = txs.map(tx => {
+    const isPos = tx.delta > 0;
+    const date  = fmtDate(tx.ts);
+    return `<div class="hist-entry">
+      <div class="hist-info">
+        <span class="hist-label">${esc(tx.label)}</span>
+        <span class="hist-date">${date}</span>
+      </div>
+      <span class="hist-delta ${isPos ? 'delta-pos' : 'delta-neg'}">${isPos ? '+' : ''}${tx.delta.toLocaleString()} ◈</span>
+    </div>`;
+  }).join('');
+}
+
+function renderSpinHistory() {
+  const el = document.getElementById('spinHistList');
+  if (!el || !currentUser) return;
+  const spins = getSpins();
+
+  if (spins.length === 0) { el.innerHTML = '<p class="empty-state">No spins yet.</p>'; return; }
+
+  el.innerHTML = spins.map(sp => {
+    const date      = fmtDate(sp.ts);
+    const slotsHtml = sp.slots.map(s => {
+      const r = RARITIES[s.rarity] || RARITIES.common;
+      return `<span style="color:${r.color || '#cc44ff'}">${esc(s.name)}</span>`;
+    }).join(' · ');
+    const result = sp.isWin
+      ? `<span class="hist-win">WIN!</span>`
+      : `<span class="hist-loss">-${sp.cost} ◈</span>`;
+
+    return `<div class="hist-entry">
+      <div class="hist-info">
+        <div class="hist-slots">${slotsHtml}</div>
+        <span class="hist-date">${date}</span>
+      </div>
+      ${result}
+    </div>`;
+  }).join('');
 }
 
 // ================================================================
@@ -259,10 +415,14 @@ function renderCase(index, item) {
   }
 
   const r = RARITIES[item.rarity] || RARITIES.common;
+  const iconHtml = item.image
+    ? `<img class="item-img" src="${esc(item.image)}" alt="${esc(item.name)}" onerror="this.style.display='none'">`
+    : `<span class="item-icon">${item.type === 'account' ? '👤' : '📦'}</span>`;
+
   card.className = 'case-item ' + r.cls;
   card.innerHTML = `
     <div class="item-display">
-      <span class="item-icon">${item.type === 'account' ? '👤' : '📦'}</span>
+      ${iconHtml}
       <div class="item-name">${esc(item.name)}</div>
       <div class="item-badge">${item.type}</div>
       <div class="item-rarity">${r.name}</div>
@@ -282,10 +442,8 @@ async function spinReel(index, finalItem, stopMs) {
       const elapsed = Date.now() - start;
       if (elapsed >= stopMs) { renderCase(index, finalItem); resolve(); return; }
 
-      const rnd = pool[Math.floor(Math.random() * pool.length)];
-      renderCase(index, rnd);
+      renderCase(index, pool[Math.floor(Math.random() * pool.length)]);
 
-      // Gradually slow down
       const prog = elapsed / stopMs;
       if      (prog > 0.9)  delay = 260;
       else if (prog > 0.78) delay = 170;
@@ -346,14 +504,15 @@ async function spin() {
   if (!currentUser) { showModal('login'); return; }
 
   const pool = getPool();
-  if (pool.length === 0) { notify('The item pool is empty — ask the admin to add items.', 'error'); return; }
+  if (pool.length === 0) { notify('The item pool is empty.', 'error'); return; }
   if (currentUser.silver_balance < SPIN_COST) { notify('Not enough silver! Click ◈ to buy more.', 'error'); return; }
 
-  // Deduct silver via backend (atomic — fails if balance insufficient)
+  // Deduct via backend
   try {
     const { silver_balance } = await apiRequest('PATCH', '/auth/silver', { delta: -SPIN_COST });
     currentUser.silver_balance = silver_balance;
     refreshSilver();
+    logTx(-SPIN_COST, 'Spin');
   } catch (err) {
     notify(err.message || 'Could not deduct silver.', 'error');
     return;
@@ -374,6 +533,7 @@ async function spin() {
   isSpinning = false;
   document.getElementById('spinBtn').disabled = false;
 
+  logSpin(results, isWin, isWin ? results[0] : null);
   if (isWin) awardWin(results[0]);
 }
 
@@ -386,7 +546,6 @@ function awardWin(item) {
     + `<span style="margin-left:8px;font-size:12px;color:var(--text3)">(${r.name})</span>`;
   document.getElementById('winBanner').classList.remove('hidden');
 
-  // Inventory persistence will be added in a later backend step
   notify('🎉 You won: ' + item.name + '!', 'success');
 }
 
@@ -399,57 +558,85 @@ let pendingPurchase = null;
 
 function initPurchase(silverAmount, priceLabel, usdCents) {
   if (!currentUser) { showModal('login'); return; }
-
   pendingPurchase = { silverAmount, priceLabel, usdCents };
-
   document.getElementById('purchaseAmount').textContent = silverAmount.toLocaleString();
   document.getElementById('purchasePrice').textContent  = priceLabel;
-
   window.open(PAYMENT_URL + '?amount=' + usdCents + '&silver=' + silverAmount, '_blank');
   showModal('confirmPurchase');
 }
 
 async function confirmPurchase() {
   if (!pendingPurchase || !currentUser) return;
-
   const { silverAmount, priceLabel } = pendingPurchase;
   pendingPurchase = null;
   hideModal('confirmPurchase');
 
-  // Add silver via backend so the real balance stays in sync
   try {
     const { silver_balance } = await apiRequest('PATCH', '/auth/silver', { delta: silverAmount });
     currentUser.silver_balance = silver_balance;
     refreshSilver();
+    logTx(silverAmount, 'Purchase ' + priceLabel);
     notify(`◈ +${silverAmount.toLocaleString()} Silver added! (${priceLabel})`, 'success');
   } catch (err) {
     notify(err.message || 'Could not add silver.', 'error');
   }
 }
 
-// Legacy alias
 function purchaseSilver(amount, usd) {
   initPurchase(amount, '$' + usd + '.00', usd * 100);
 }
 
 // ================================================================
-//  ADMIN — ITEM POOL  (localStorage until backend step covers it)
+//  ADMIN — ITEM POOL
 // ================================================================
+
+function switchAdminTab(tab, btn) {
+  document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('adminTab' + cap(tab)).classList.remove('hidden');
+  btn.classList.add('active');
+}
 
 function addItem(e) {
   e.preventDefault();
   const name   = document.getElementById('itemName').value.trim();
   const desc   = document.getElementById('itemDesc').value.trim();
-  const type   = document.getElementById('itemType').value;
   const rarity = document.getElementById('itemRarity').value;
+  const image  = document.getElementById('itemImage').value.trim();
   if (!name) return;
 
   const pool = getPool();
-  pool.push({ id: 'i_' + Date.now() + '_' + Math.random().toString(36).slice(2), name, description: desc, type, rarity });
+  pool.push({
+    id: 'i_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+    name, description: desc, type: 'item', rarity,
+    image: image || null,
+  });
   savePool(pool);
   renderPool();
   document.getElementById('addItemForm').reset();
   notify('Item added to pool.', 'success');
+}
+
+function addAccount(e) {
+  e.preventDefault();
+  const accUser  = document.getElementById('accUsername').value.trim();
+  const accEmail = document.getElementById('accEmail').value.trim();
+  const accPw    = document.getElementById('accPassword').value.trim();
+  const rarity   = document.getElementById('accRarity').value;
+  if (!accUser || !accEmail) return;
+
+  const desc = `Username: ${accUser}\nEmail: ${accEmail}${accPw ? '\nPassword: ' + accPw : ''}`;
+
+  const pool = getPool();
+  pool.push({
+    id: 'acc_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+    name: accUser, description: desc, type: 'account', rarity,
+    image: null, accountEmail: accEmail, accountPassword: accPw || null,
+  });
+  savePool(pool);
+  renderPool();
+  document.getElementById('addAccountForm').reset();
+  notify('Account added to pool.', 'success');
 }
 
 function removeItem(id) {
@@ -463,17 +650,17 @@ function renderPool() {
   const countEl   = document.getElementById('poolCount');
   if (!container) return;
 
-  countEl.textContent = `(${pool.length})`;
+  if (countEl) countEl.textContent = `(${pool.length})`;
 
   if (pool.length === 0) {
-    container.innerHTML = '<p class="empty-state">No items in pool yet.</p>';
+    container.innerHTML = '<p class="empty-state">No items yet.</p>';
     return;
   }
 
   container.innerHTML = pool.map(item => {
     const r = RARITIES[item.rarity] || RARITIES.common;
     const descPreview = item.description
-      ? ' · ' + esc(item.description.slice(0, 42)) + (item.description.length > 42 ? '…' : '')
+      ? ' · ' + esc(item.description.split('\n')[0].slice(0, 40)) + (item.description.length > 40 ? '…' : '')
       : '';
     return `<div class="pool-entry ${r.peCls}">
       <div class="pool-entry-info">
@@ -519,6 +706,13 @@ function esc(str) {
 }
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function fmtDate(ts) {
+  return new Date(ts).toLocaleString('en-US', {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
 
 // ================================================================
 //  BOOT

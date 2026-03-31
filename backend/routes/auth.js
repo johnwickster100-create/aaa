@@ -185,4 +185,42 @@ router.patch('/silver', requireAuth, async (req, res) => {
   }
 });
 
+// ── PATCH /api/auth/password ──────────────────────────────────────
+// Body: { currentPassword, newPassword }
+
+router.patch('/password', requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body ?? {};
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'currentPassword and newPassword are required.' });
+  }
+
+  const pwErr = validatePassword(newPassword);
+  if (pwErr) return res.status(400).json({ error: pwErr });
+
+  try {
+    const result = await pool.query(
+      'SELECT password_hash FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const valid = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.user.id]);
+
+    return res.json({ message: 'Password updated successfully.' });
+  } catch (err) {
+    console.error('[password]', err);
+    return res.status(500).json({ error: 'Server error.' });
+  }
+});
+
 module.exports = router;
