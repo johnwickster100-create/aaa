@@ -48,8 +48,31 @@
   <!-- Main -->
   <main class="main">
 
+    <!-- ── LANDING VIEW ── shown to unauthenticated users ── -->
+    <div class="view" id="viewLanding">
+      <div class="landing-wrap">
+        <!-- decorative glow rings -->
+        <div class="landing-glow" aria-hidden="true"></div>
+
+        <div class="landing-card">
+          <div class="landing-logo">GACHA</div>
+          <h1 class="landing-title">Welcome to Gacha</h1>
+          <p class="landing-sub">Spin the reels. Test your luck. Win big.</p>
+
+          <div class="landing-actions">
+            <!-- open login modal -->
+            <button class="btn btn-primary landing-btn" onclick="showModal('login')">Log In</button>
+            <!-- open signup modal -->
+            <button class="btn btn-ghost  landing-btn" onclick="showModal('signup')">Sign Up</button>
+          </div>
+
+          <p class="landing-note">By playing you confirm you are 18+</p>
+        </div>
+      </div>
+    </div>
+
     <!-- ── SLOT VIEW ── -->
-    <div class="view" id="viewSlot">
+    <div class="view hidden" id="viewSlot">
       <div class="slot-container">
         <h2 class="section-title">Slot Machine</h2>
         <p class="section-subtitle">Match all 3 cases to win the item! &nbsp;Cost: <span class="silver-text">◈ 50 Silver</span> per spin</p>
@@ -266,20 +289,30 @@
   <div class="modal-overlay hidden" id="modalLogin" onclick="overlayClose(event,'login')">
     <div class="modal">
       <div class="modal-header">
-        <h2>Login</h2>
+        <h2>Log In</h2>
         <button class="modal-close" onclick="hideModal('login')">✕</button>
       </div>
       <form onsubmit="login(event)">
         <div class="form-group">
-          <label>Username</label>
-          <input type="text" id="loginUsername" placeholder="Your username" required>
+          <label>Email or Username</label>
+          <!-- id kept as loginUsername for minimal JS change; accepts email or username -->
+          <input type="text" id="loginUsername" placeholder="your@email.com or username" required autocomplete="username">
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="loginPassword" placeholder="Your password" required>
+          <input type="password" id="loginPassword" placeholder="Your password" required autocomplete="current-password">
         </div>
+
+        <!-- error message — text set by JS: "Wrong password." or "Can't find email." -->
         <div class="form-error hidden" id="loginError"></div>
-        <button type="submit" class="btn btn-primary btn-full">Login</button>
+
+        <button type="submit" class="btn btn-primary btn-full">Log In</button>
+
+        <!-- forgot password link — opens the forgot-password modal -->
+        <p class="modal-forgot">
+          <a href="#" onclick="switchModal('login','forgotPw')">Forgot Password?</a>
+        </p>
+
         <p class="modal-switch">No account? <a href="#" onclick="switchModal('login','signup')">Sign Up</a></p>
       </form>
     </div>
@@ -429,6 +462,36 @@
         </div>
 
       </div>
+    </div>
+  </div>
+
+  <!-- ── FORGOT PASSWORD MODAL ── mock UI, no real email sending ── -->
+  <div class="modal-overlay hidden" id="modalForgotPw" onclick="overlayClose(event,'forgotPw')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Reset Password</h2>
+        <button class="modal-close" onclick="hideModal('forgotPw')">✕</button>
+      </div>
+
+      <p class="modal-desc">Enter your account email and we'll send you reset instructions.</p>
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="forgotPwEmail" placeholder="your@email.com" autocomplete="email">
+      </div>
+
+      <!-- error shown when email field is blank or badly formatted -->
+      <div class="form-error  hidden" id="forgotPwError"></div>
+      <!-- success shown after mock check passes -->
+      <div class="form-success hidden" id="forgotPwSuccess"></div>
+
+      <button class="btn btn-primary btn-full" id="forgotPwBtn" onclick="forgotPassword()">
+        Send Reset Email
+      </button>
+
+      <p class="modal-switch" style="margin-top:14px;">
+        <a href="#" onclick="switchModal('forgotPw','login')">← Back to Log In</a>
+      </p>
     </div>
   </div>
 

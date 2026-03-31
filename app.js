@@ -111,22 +111,29 @@ async function apiRequest(method, path, body) {
 // ================================================================
 
 async function init() {
+  // Render header immediately in logged-out state while we check the session
   renderHeader();
-  showView('slot');
   renderPool();
 
   const token = getToken();
   if (token) {
     try {
+      // Restore session from stored JWT — if valid, go straight to casino
       const user = await apiRequest('GET', '/auth/me');
       currentUser = user;
       renderHeader();
+      showView('slot');
     } catch {
+      // Token expired or invalid — clear it and show the landing page
       clearToken();
+      showView('landing');
     }
+  } else {
+    // No token — show the welcome / landing page
+    showView('landing');
   }
 
-  // Close user menu when clicking anywhere else
+  // Close the username dropdown when clicking anywhere outside it
   document.addEventListener('click', () => closeUserMenu());
 }
 
@@ -241,6 +248,8 @@ async function signup(e) {
     currentUser = user;
     hideModal('signup');
     renderHeader();
+    // After sign-up, take the user into the casino
+    showView('slot');
     notify('Welcome to Gacha, ' + user.username + '!', 'success');
     e.target.reset();
   } catch (err) {
@@ -256,20 +265,25 @@ async function signup(e) {
 
 async function login(e) {
   e.preventDefault();
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value;
+  // The field accepts email OR username; backend handles both
+  const identifier = document.getElementById('loginUsername').value.trim();
+  const password   = document.getElementById('loginPassword').value;
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true;
 
   try {
-    const { token, user } = await apiRequest('POST', '/auth/login', { username, password });
+    const { token, user } = await apiRequest('POST', '/auth/login', { identifier, password });
     saveToken(token);
     currentUser = user;
     hideModal('login');
     renderHeader();
+    // After login, take the user into the casino
+    showView('slot');
     notify('Welcome back, ' + user.username + '!', 'success');
     e.target.reset();
   } catch (err) {
+    // Backend returns specific strings: "Can't find email." or "Wrong password."
+    // showErr() surfaces them directly below the form
     showErr('loginError', err.message);
   } finally {
     btn.disabled = false;
@@ -287,6 +301,43 @@ function logout() {
   renderHeader();
   showView('slot');
   notify('Logged out.', 'info');
+}
+
+// ================================================================
+//  FORGOT PASSWORD  (mock — no real email sending)
+// ================================================================
+
+async function forgotPassword() {
+  const email  = document.getElementById('forgotPwEmail').value.trim();
+  const errEl  = document.getElementById('forgotPwError');
+  const sucEl  = document.getElementById('forgotPwSuccess');
+  const btn    = document.getElementById('forgotPwBtn');
+
+  // Clear previous messages
+  errEl.classList.add('hidden'); errEl.textContent = '';
+  sucEl.classList.add('hidden'); sucEl.textContent = '';
+
+  // Basic email validation — show "Can't find email" for blank/invalid input
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRe.test(email)) {
+    errEl.textContent = "Can't find email.";
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  // Simulate a network round-trip so the UX feels real
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  await new Promise(r => setTimeout(r, 900));
+  btn.disabled = false;
+  btn.textContent = 'Send Reset Email';
+
+  // Mock result: any properly-formatted email is treated as "found"
+  // In production this would call POST /api/auth/forgot-password and
+  // the backend would send a real email only if the address exists.
+  sucEl.textContent = 'Check your email for reset instructions.';
+  sucEl.classList.remove('hidden');
+  document.getElementById('forgotPwEmail').value = '';
 }
 
 // ================================================================

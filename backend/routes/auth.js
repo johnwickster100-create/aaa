@@ -86,27 +86,36 @@ router.post('/signup', async (req, res) => {
 });
 
 // ── POST /api/auth/login ──────────────────────────────────────────
+// Accepts email OR username in the `identifier` field.
+// Returns distinct 401 errors so the frontend can show specific messages.
 
 router.post('/login', async (req, res) => {
-  const { username, password } = req.body ?? {};
+  const { identifier, password } = req.body ?? {};
 
-  if (!username || !password) {
-    return res.status(400).json({ error: 'username and password are required.' });
+  if (!identifier || !password) {
+    return res.status(400).json({ error: 'Email/username and password are required.' });
   }
 
   try {
+    // Look up by email first, then fall back to username
     const result = await pool.query(
-      'SELECT * FROM users WHERE LOWER(username) = LOWER($1)',
-      [username.trim()]
+      `SELECT * FROM users
+       WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1)
+       LIMIT 1`,
+      [identifier.trim()]
     );
 
     const user = result.rows[0];
-    // Use a constant-time compare even on miss (mitigates timing attacks)
-    const hash  = user?.password_hash ?? '$2b$12$invalidhashpadding000000000000000000000000000000000000';
-    const valid = await bcrypt.compare(password, hash);
 
-    if (!user || !valid) {
-      return res.status(401).json({ error: 'Incorrect username or password.' });
+    if (!user) {
+      // Perform a dummy bcrypt compare to keep timing constant
+      await bcrypt.compare(password, '$2b$12$invalidhashpaddinginvalidhashpaddinginvalidhashpadding00');
+      return res.status(401).json({ error: "Can't find email." });
+    }
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Wrong password.' });
     }
 
     const token = signToken(user);
