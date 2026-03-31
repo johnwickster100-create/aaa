@@ -48,29 +48,6 @@
   <!-- Main -->
   <main class="main">
 
-    <!-- ── LANDING VIEW ── shown to unauthenticated users ── -->
-    <div class="view" id="viewLanding">
-      <div class="landing-wrap">
-        <!-- decorative glow rings -->
-        <div class="landing-glow" aria-hidden="true"></div>
-
-        <div class="landing-card">
-          <div class="landing-logo">GACHA</div>
-          <h1 class="landing-title">Welcome to Gacha</h1>
-          <p class="landing-sub">Spin the reels. Test your luck. Win big.</p>
-
-          <div class="landing-actions">
-            <!-- open login modal -->
-            <button class="btn btn-primary landing-btn" onclick="showModal('login')">Log In</button>
-            <!-- open signup modal -->
-            <button class="btn btn-ghost  landing-btn" onclick="showModal('signup')">Sign Up</button>
-          </div>
-
-          <p class="landing-note">By playing you confirm you are 18+</p>
-        </div>
-      </div>
-    </div>
-
     <!-- ── SLOT VIEW ── -->
     <div class="view hidden" id="viewSlot">
       <div class="slot-container">
@@ -492,6 +469,20 @@
       <p class="modal-switch" style="margin-top:14px;">
         <a href="#" onclick="switchModal('forgotPw','login')">← Back to Log In</a>
       </p>
+    </div>
+  </div>
+
+  <!-- ── 18+ DISCLAIMER MODAL ── must be accepted before anything else ── -->
+  <div class="modal-overlay hidden" id="modalDisclaimer">
+    <div class="modal modal-disclaimer">
+      <div class="disclaimer-icon">🔞</div>
+      <h2 class="disclaimer-title">18+ Disclaimer</h2>
+      <div class="disclaimer-body">
+        <p>This website is strictly for users aged <strong>18 and older</strong>.</p>
+        <p>If you are under 18, access to this website is <strong>permanently restricted</strong>.</p>
+        <p>By continuing, you confirm that you are 18 years of age or older and legally permitted to access gambling content in your jurisdiction.</p>
+      </div>
+      <button class="btn btn-primary btn-full disclaimer-btn" onclick="acceptDisclaimer()">Yes, I am 18+</button>
     </div>
   </div>
 

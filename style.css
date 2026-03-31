@@ -704,62 +704,37 @@ body {
 .hist-win   { color: var(--success); font-size: 12px; font-weight: 700; }
 .hist-loss  { color: var(--danger);  font-size: 12px; font-weight: 700; }
 
-/* ── Landing Page ─────────────────────────────────────────────── */
-/* Full-height welcome screen shown to unauthenticated users */
-.landing-wrap {
-  min-height: calc(100vh - 58px);   /* fill viewport below header */
-  display: flex; align-items: center; justify-content: center;
-  position: relative; overflow: hidden;
+/* ── 18+ Disclaimer Modal ────────────────────────────────────── */
+#modalDisclaimer {
+  z-index: 1000; /* above everything */
 }
-
-/* Subtle radial glow in the background */
-.landing-glow {
-  position: absolute; inset: 0; pointer-events: none;
-  background:
-    radial-gradient(ellipse 60% 50% at 50% 40%, rgba(88,101,242,.12) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 30% at 50% 40%, rgba(235,69,158,.07) 0%, transparent 60%);
+.modal-disclaimer {
+  max-width: 440px;
+  text-align: center;
+  padding: 40px 36px 32px;
 }
-
-/* Centred card sitting on top of the glow */
-.landing-card {
-  position: relative; z-index: 1;
-  text-align: center; padding: 20px;
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  max-width: 480px; width: 100%;
+.disclaimer-icon {
+  font-size: 52px; margin-bottom: 14px; line-height: 1;
 }
-
-/* Giant logo */
-.landing-logo {
-  font-size: 72px; font-weight: 900; letter-spacing: 14px;
-  background: linear-gradient(135deg, #5865f2 30%, #eb459e);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent;
-  line-height: 1; margin-bottom: 4px;
+.disclaimer-title {
+  font-size: 22px; font-weight: 800;
+  margin-bottom: 20px; color: var(--text);
 }
-
-.landing-title {
-  font-size: 28px; font-weight: 700;
-  color: var(--text); margin: 0;
+.disclaimer-body {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 28px;
+  background: rgba(237,66,69,.07);
+  border: 1px solid rgba(237,66,69,.2);
+  border-radius: 10px; padding: 18px 20px;
+  text-align: left;
 }
-
-.landing-sub {
-  font-size: 15px; color: var(--text2);
-  margin-bottom: 8px;
+.disclaimer-body p {
+  font-size: 13px; color: var(--text2); line-height: 1.65;
 }
-
-/* Buttons row */
-.landing-actions {
-  display: flex; gap: 12px; margin-top: 8px;
-}
-
-.landing-btn {
-  padding: 11px 36px; font-size: 15px; font-weight: 600;
-  border-radius: 8px;
-}
-
-/* Small legal disclaimer */
-.landing-note {
-  font-size: 11px; color: var(--text3); margin-top: 6px;
+.disclaimer-body strong { color: var(--text); }
+.disclaimer-btn {
+  padding: 13px 0; font-size: 15px; font-weight: 700;
+  letter-spacing: .5px; border-radius: 8px;
 }
 
 /* ── Forgot Password ──────────────────────────────────────────── */

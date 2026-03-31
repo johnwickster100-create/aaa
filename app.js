@@ -107,34 +107,76 @@ async function apiRequest(method, path, body) {
 }
 
 // ================================================================
+//  18+ DISCLAIMER
+// ================================================================
+
+const DISCLAIMER_KEY = 'gacha_18_accepted';
+
+function hasAcceptedDisclaimer() {
+  return localStorage.getItem(DISCLAIMER_KEY) === '1';
+}
+
+function acceptDisclaimer() {
+  localStorage.setItem(DISCLAIMER_KEY, '1');
+  document.getElementById('modalDisclaimer').classList.add('hidden');
+  initAfterDisclaimer();
+}
+
+// ================================================================
 //  INIT
 // ================================================================
 
 async function init() {
-  // Render header immediately in logged-out state while we check the session
+  if (!hasAcceptedDisclaimer()) {
+    // Show disclaimer — block everything until accepted
+    document.getElementById('modalDisclaimer').classList.remove('hidden');
+    return;
+  }
+  await initAfterDisclaimer();
+}
+
+async function initAfterDisclaimer() {
   renderHeader();
   renderPool();
 
   const token = getToken();
   if (token) {
     try {
-      // Restore session from stored JWT — if valid, go straight to casino
       const user = await apiRequest('GET', '/auth/me');
       currentUser = user;
       renderHeader();
-      showView('slot');
     } catch {
-      // Token expired or invalid — clear it and show the landing page
       clearToken();
-      showView('landing');
     }
-  } else {
-    // No token — show the welcome / landing page
-    showView('landing');
   }
 
-  // Close the username dropdown when clicking anywhere outside it
+  // Always show the casino/games view after disclaimer
+  showView('slot');
+
+  // Global click guard: any click while logged out triggers login modal
+  document.addEventListener('click', globalClickGuard);
+  // Close username dropdown on any outside click
   document.addEventListener('click', () => closeUserMenu());
+}
+
+// ================================================================
+//  GLOBAL CLICK GUARD  (non-logged-in users → show login)
+// ================================================================
+
+let suppressGuard = false;
+
+function globalClickGuard(e) {
+  if (suppressGuard) return;
+  if (currentUser) return; // already logged in
+
+  // Let clicks inside any modal overlay pass through (modals handle themselves)
+  if (e.target.closest('.modal-overlay')) return;
+
+  // Don't stack login modals
+  const loginModal = document.getElementById('modalLogin');
+  if (loginModal && !loginModal.classList.contains('hidden')) return;
+
+  showModal('login');
 }
 
 // ================================================================
@@ -295,6 +337,10 @@ async function login(e) {
 // ================================================================
 
 function logout() {
+  // Suppress click guard for this event so login modal doesn't auto-pop on logout click
+  suppressGuard = true;
+  setTimeout(() => { suppressGuard = false; }, 0);
+
   closeUserMenu();
   currentUser = null;
   clearToken();
