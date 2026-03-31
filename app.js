@@ -4,7 +4,9 @@
 //  CONSTANTS
 // ================================================================
 
-const SPIN_COST = 35; // ~25–50 silver range
+const API = 'http://localhost:3001/api';
+
+const SPIN_COST = 35;
 
 const RARITIES = {
   common:      { name: 'Common',    color: '#9e9e9e', cls: 'rarity-common',      peCls: 'pe-common'     },
@@ -32,72 +34,74 @@ const RARITY_WEIGHTS = [
 
 // Rarity weights for LOSING spins — higher rarity = less likely to appear
 const LOSE_RARITY_WEIGHTS = [
-  { rarity: 'common',      weight: 40 },
-  { rarity: 'uncommon',    weight: 28 },
-  { rarity: 'item_rarity', weight: 18 },
-  { rarity: 'rare',        weight: 9  },
+  { rarity: 'common',      weight: 40  },
+  { rarity: 'uncommon',    weight: 28  },
+  { rarity: 'item_rarity', weight: 18  },
+  { rarity: 'rare',        weight: 9   },
   { rarity: 'legendary',   weight: 3.5 },
-  { rarity: 'mythical',    weight: 1  },
+  { rarity: 'mythical',    weight: 1   },
   { rarity: 'spec',        weight: 0.5 },
 ];
 
 // ================================================================
-//  STORAGE
+//  STORAGE  (item pool stays in localStorage; auth moves to backend)
 // ================================================================
 
-function getUsers()   { return JSON.parse(localStorage.getItem('gacha_users')   || '[]'); }
-function saveUsers(u) { localStorage.setItem('gacha_users',   JSON.stringify(u)); }
-function getPool()    { return JSON.parse(localStorage.getItem('gacha_pool')    || '[]'); }
-function savePool(p)  { localStorage.setItem('gacha_pool',    JSON.stringify(p)); }
+function getPool()   { return JSON.parse(localStorage.getItem('gacha_pool') || '[]'); }
+function savePool(p) { localStorage.setItem('gacha_pool', JSON.stringify(p)); }
+
+function getToken()       { return localStorage.getItem('gacha_jwt') || null; }
+function saveToken(token) { localStorage.setItem('gacha_jwt', token); }
+function clearToken()     { localStorage.removeItem('gacha_jwt'); }
 
 // ================================================================
 //  STATE
 // ================================================================
 
-let currentUser = null;
+let currentUser = null;  // shape: { id, email, username, silver_balance, email_verified }
 let isSpinning  = false;
+
+// ================================================================
+//  API HELPER
+// ================================================================
+
+async function apiRequest(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  const res = await fetch(API + path, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed.');
+  return data;
+}
 
 // ================================================================
 //  INIT
 // ================================================================
 
-function init() {
-  // Ensure admin account exists
-  const users = getUsers();
-  if (!users.find(u => u.isAdmin)) {
-    users.push({
-      id: 'admin',
-      email: 'admin@gacha.gg',
-      username: 'admin',
-      password: hashPw('Admin123!'),
-      silver: 999999,
-      isAdmin: true,
-      inventory: [],
-    });
-    saveUsers(users);
-  }
-
-  // Restore session
-  const raw = localStorage.getItem('gacha_session');
-  if (raw) {
-    const saved = JSON.parse(raw);
-    const fresh = getUsers().find(u => u.id === saved.id);
-    if (fresh) currentUser = fresh;
-  }
-
-  renderHeader();
+async function init() {
+  renderHeader();         // render immediately (logged-out state)
   showView('slot');
   renderPool();
-}
 
-// ================================================================
-//  SIMPLE PASSWORD HASH (demo only — not cryptographic)
-// ================================================================
-
-function hashPw(pw) {
-  let h = 5381;
-  for (let i = 0; i < pw.length; i++) h = ((h << 5) + h) ^ pw.charCodeAt(i);
-  return 'gh_' + (h >>> 0).toString(36) + '_' + pw.length;
+  // Restore session if a token exists
+  const token = getToken();
+  if (token) {
+    try {
+      const user = await apiRequest('GET', '/auth/me');
+      currentUser = user;
+      renderHeader();
+    } catch {
+      // Token expired / invalid — clear it silently
+      clearToken();
+    }
+  }
 }
 
 // ================================================================
@@ -110,9 +114,8 @@ function renderHeader() {
     $('authButtons').classList.add('hidden');
     $('userInfo').classList.remove('hidden');
     $('headerUsername').textContent = currentUser.username;
-    $('silverAmount').textContent   = currentUser.silver.toLocaleString();
-    $('silverDisplay').style.visibility = 'visible';
-    $('adminNavBtn').classList.toggle('hidden', !currentUser.isAdmin);
+    $('silverAmount').textContent   = currentUser.silver_balance.toLocaleString();
+    $('adminNavBtn').classList.add('hidden'); // admin UI coming in a later step
   } else {
     $('authButtons').classList.remove('hidden');
     $('userInfo').classList.add('hidden');
@@ -122,7 +125,9 @@ function renderHeader() {
 }
 
 function refreshSilver() {
-  if (currentUser) document.getElementById('silverAmount').textContent = currentUser.silver.toLocaleString();
+  if (currentUser) {
+    document.getElementById('silverAmount').textContent = currentUser.silver_balance.toLocaleString();
+  }
 }
 
 // ================================================================
@@ -135,10 +140,7 @@ function showView(name) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const nb = document.querySelector(`.nav-btn[onclick="showView('${name}')"]`);
   if (nb) nb.classList.add('active');
-  if (name === 'admin') {
-    if (!currentUser?.isAdmin) { showView('slot'); return; }
-    renderAdmin();
-  }
+  if (name === 'admin') renderAdmin();
 }
 
 function goShop() {
@@ -172,71 +174,59 @@ function updateHints() {
   document.getElementById('hintSpec').classList.toggle('ok', /[!@#$%^&*()\-_=+\[\]{};':"\\|,.<>/?`~]/.test(pw));
 }
 
-function validatePw(pw) {
-  if (pw.length < 8) return 'Password must be at least 8 characters.';
-  if (!/[!@#$%^&*()\-_=+\[\]{};':"\\|,.<>/?`~]/.test(pw)) return 'Password must contain at least one special character.';
-  return null;
-}
-
 // ================================================================
 //  AUTH — SIGN UP
 // ================================================================
 
-function signup(e) {
+async function signup(e) {
   e.preventDefault();
   const email    = document.getElementById('signupEmail').value.trim();
   const username = document.getElementById('signupUsername').value.trim();
   const password = document.getElementById('signupPassword').value;
 
-  const pwErr = validatePw(password);
-  if (pwErr) { showErr('signupError', pwErr); return; }
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
 
-  const users = getUsers();
-  if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
-    showErr('signupError', 'Username already taken — choose another.'); return;
+  try {
+    const { token, user } = await apiRequest('POST', '/auth/signup', { email, username, password });
+    saveToken(token);
+    currentUser = user;
+    hideModal('signup');
+    renderHeader();
+    notify('Welcome to Gacha, ' + user.username + '!', 'success');
+    e.target.reset();
+  } catch (err) {
+    showErr('signupError', err.message);
+  } finally {
+    btn.disabled = false;
   }
-  if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-    showErr('signupError', 'Email already registered.'); return;
-  }
-
-  const newUser = {
-    id: 'u_' + Date.now(),
-    email, username,
-    password: hashPw(password),
-    silver: 0, isAdmin: false, inventory: [],
-  };
-  users.push(newUser);
-  saveUsers(users);
-
-  currentUser = newUser;
-  localStorage.setItem('gacha_session', JSON.stringify({ id: newUser.id }));
-  hideModal('signup');
-  renderHeader();
-  notify('Welcome to Gacha, ' + username + '!', 'success');
-  document.getElementById('signupUsername').closest('form').reset();
 }
 
 // ================================================================
 //  AUTH — LOGIN
 // ================================================================
 
-function login(e) {
+async function login(e) {
   e.preventDefault();
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
 
-  const user = getUsers().find(u => u.username.toLowerCase() === username.toLowerCase());
-  if (!user || user.password !== hashPw(password)) {
-    showErr('loginError', 'Incorrect username or password.'); return;
-  }
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
 
-  currentUser = user;
-  localStorage.setItem('gacha_session', JSON.stringify({ id: user.id }));
-  hideModal('login');
-  renderHeader();
-  notify('Welcome back, ' + user.username + '!', 'success');
-  document.getElementById('loginUsername').closest('form').reset();
-  if (user.isAdmin) renderAdmin();
+  try {
+    const { token, user } = await apiRequest('POST', '/auth/login', { username, password });
+    saveToken(token);
+    currentUser = user;
+    hideModal('login');
+    renderHeader();
+    notify('Welcome back, ' + user.username + '!', 'success');
+    e.target.reset();
+  } catch (err) {
+    showErr('loginError', err.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ================================================================
@@ -245,7 +235,7 @@ function login(e) {
 
 function logout() {
   currentUser = null;
-  localStorage.removeItem('gacha_session');
+  clearToken();
   renderHeader();
   showView('slot');
   notify('Logged out.', 'info');
@@ -256,9 +246,9 @@ function logout() {
 // ================================================================
 
 function renderCase(index, item) {
-  const card    = document.getElementById('case' + index);
-  const tname   = document.getElementById('tname' + index);
-  const tdesc   = document.getElementById('tdesc' + index);
+  const card  = document.getElementById('case' + index);
+  const tname = document.getElementById('tname' + index);
+  const tdesc = document.getElementById('tdesc' + index);
 
   if (!item) {
     card.className = 'case-item';
@@ -307,7 +297,7 @@ async function spinReel(index, finalItem, stopMs) {
   });
 }
 
-// ── Weighted helpers ──
+// ── Weighted helpers ──────────────────────────────────────────────
 
 function weightedPickRarity(weights) {
   const total = weights.reduce((s, w) => s + w.weight, 0);
@@ -316,49 +306,32 @@ function weightedPickRarity(weights) {
     roll -= entry.weight;
     if (roll <= 0) return entry.rarity;
   }
-  return weights[weights.length - 1].rarity; // fallback
+  return weights[weights.length - 1].rarity;
 }
 
-function itemsOfRarity(pool, rarity) {
-  return pool.filter(i => i.rarity === rarity);
-}
-
-function pickRandomFrom(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+function itemsOfRarity(pool, rarity) { return pool.filter(i => i.rarity === rarity); }
+function pickRandomFrom(arr)         { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function pickLoseItem(pool) {
-  // Weighted rarity pick, then random item within that rarity
-  // If no items exist for the chosen rarity, fall through to any item
   const rarity = weightedPickRarity(LOSE_RARITY_WEIGHTS);
   const bucket = itemsOfRarity(pool, rarity);
-  if (bucket.length > 0) return pickRandomFrom(bucket);
-  return pickRandomFrom(pool); // fallback
+  return bucket.length > 0 ? pickRandomFrom(bucket) : pickRandomFrom(pool);
 }
 
 function generateResults(pool) {
-  const roll = Math.random();
-
-  if (roll < WIN_CHANCE) {
-    // ── WINNING SPIN: pick rarity, fill all 3 slots with items of that rarity ──
+  if (Math.random() < WIN_CHANCE) {
     const chosenRarity = weightedPickRarity(RARITY_WEIGHTS);
     const bucket = itemsOfRarity(pool, chosenRarity);
-
     if (bucket.length > 0) {
-      // Each slot picks independently from the same rarity bucket
-      // All 3 must be the same *item* to count as a win, so pick one and duplicate
       const winItem = pickRandomFrom(bucket);
       return { results: [winItem, winItem, winItem], isWin: true };
     }
-    // No items of that rarity in the pool — fall through to a losing spin
   }
 
-  // ── LOSING SPIN: 3 different items, rarity-weighted ──
   const r0 = pickLoseItem(pool);
   let r1 = pickLoseItem(pool);
   let r2 = pickLoseItem(pool);
 
-  // Ensure not all 3 are the same item (prevent accidental wins)
   let safety = 20;
   while (r0.id === r1.id && r1.id === r2.id && safety-- > 0) {
     r1 = pickLoseItem(pool);
@@ -374,18 +347,22 @@ async function spin() {
 
   const pool = getPool();
   if (pool.length === 0) { notify('The item pool is empty — ask the admin to add items.', 'error'); return; }
-  if (currentUser.silver < SPIN_COST) { notify('Not enough silver! Click ◈ to buy more.', 'error'); return; }
+  if (currentUser.silver_balance < SPIN_COST) { notify('Not enough silver! Click ◈ to buy more.', 'error'); return; }
 
-  // Deduct silver
-  currentUser.silver -= SPIN_COST;
-  syncUser();
-  refreshSilver();
+  // Deduct silver via backend (atomic — fails if balance insufficient)
+  try {
+    const { silver_balance } = await apiRequest('PATCH', '/auth/silver', { delta: -SPIN_COST });
+    currentUser.silver_balance = silver_balance;
+    refreshSilver();
+  } catch (err) {
+    notify(err.message || 'Could not deduct silver.', 'error');
+    return;
+  }
 
   document.getElementById('winBanner').classList.add('hidden');
   isSpinning = true;
   document.getElementById('spinBtn').disabled = true;
 
-  // Generate weighted results
   const { results, isWin } = generateResults(pool);
 
   await Promise.all([
@@ -397,25 +374,19 @@ async function spin() {
   isSpinning = false;
   document.getElementById('spinBtn').disabled = false;
 
-  if (isWin) {
-    awardWin(results[0]);
-  }
+  if (isWin) awardWin(results[0]);
 }
 
 function awardWin(item) {
   const r = RARITIES[item.rarity] || RARITIES.common;
 
-  // Win banner
   document.getElementById('winItemDisplay').innerHTML =
     `<span class="${r.cls}" style="font-size:16px;font-weight:700;">`
     + (item.type === 'account' ? '👤' : '📦') + ' ' + esc(item.name) + '</span>'
     + `<span style="margin-left:8px;font-size:12px;color:var(--text3)">(${r.name})</span>`;
   document.getElementById('winBanner').classList.remove('hidden');
 
-  // Add to user inventory
-  currentUser.inventory = currentUser.inventory || [];
-  currentUser.inventory.push({ ...item, wonAt: Date.now() });
-  syncUser();
+  // Inventory persistence will be added in a later backend step
   notify('🎉 You won: ' + item.name + '!', 'success');
 }
 
@@ -423,10 +394,7 @@ function awardWin(item) {
 //  SHOP
 // ================================================================
 
-// Placeholder payment URL — replace with real payment endpoint when ready
 const PAYMENT_URL = 'https://payment.gacha.gg/checkout';
-
-// Pending purchase state
 let pendingPurchase = null;
 
 function initPurchase(silverAmount, priceLabel, usdCents) {
@@ -434,40 +402,38 @@ function initPurchase(silverAmount, priceLabel, usdCents) {
 
   pendingPurchase = { silverAmount, priceLabel, usdCents };
 
-  // Populate modal
   document.getElementById('purchaseAmount').textContent = silverAmount.toLocaleString();
   document.getElementById('purchasePrice').textContent  = priceLabel;
 
-  // Open payment tab
   window.open(PAYMENT_URL + '?amount=' + usdCents + '&silver=' + silverAmount, '_blank');
-
-  // Show confirmation modal
   showModal('confirmPurchase');
 }
 
-function confirmPurchase() {
-  if (!pendingPurchase) return;
-  if (!currentUser) { hideModal('confirmPurchase'); showModal('login'); return; }
+async function confirmPurchase() {
+  if (!pendingPurchase || !currentUser) return;
 
-  currentUser.silver += pendingPurchase.silverAmount;
-  syncUser();
-  refreshSilver();
-
-  const gained = pendingPurchase.silverAmount;
-  const price  = pendingPurchase.priceLabel;
+  const { silverAmount, priceLabel } = pendingPurchase;
   pendingPurchase = null;
-
   hideModal('confirmPurchase');
-  notify(`◈ +${gained.toLocaleString()} Silver added! (${price})`, 'success');
+
+  // Add silver via backend so the real balance stays in sync
+  try {
+    const { silver_balance } = await apiRequest('PATCH', '/auth/silver', { delta: silverAmount });
+    currentUser.silver_balance = silver_balance;
+    refreshSilver();
+    notify(`◈ +${silverAmount.toLocaleString()} Silver added! (${priceLabel})`, 'success');
+  } catch (err) {
+    notify(err.message || 'Could not add silver.', 'error');
+  }
 }
 
-// Legacy alias kept in case anything calls it directly
+// Legacy alias
 function purchaseSilver(amount, usd) {
   initPurchase(amount, '$' + usd + '.00', usd * 100);
 }
 
 // ================================================================
-//  ADMIN — ITEM POOL
+//  ADMIN — ITEM POOL  (localStorage until backend step covers it)
 // ================================================================
 
 function addItem(e) {
@@ -506,7 +472,9 @@ function renderPool() {
 
   container.innerHTML = pool.map(item => {
     const r = RARITIES[item.rarity] || RARITIES.common;
-    const descPreview = item.description ? ' · ' + esc(item.description.slice(0, 42)) + (item.description.length > 42 ? '…' : '') : '';
+    const descPreview = item.description
+      ? ' · ' + esc(item.description.slice(0, 42)) + (item.description.length > 42 ? '…' : '')
+      : '';
     return `<div class="pool-entry ${r.peCls}">
       <div class="pool-entry-info">
         <span class="pool-entry-name">${esc(item.name)}</span>
@@ -517,59 +485,8 @@ function renderPool() {
   }).join('');
 }
 
-// ================================================================
-//  ADMIN — USERS
-// ================================================================
-
-function renderUsersTable() {
-  const tbody = document.getElementById('usersTableBody');
-  if (!tbody) return;
-
-  const users = getUsers().filter(u => !u.isAdmin);
-  if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No users yet.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = users.map(u => {
-    const wins = (u.inventory || []).length;
-    return `<tr>
-      <td><strong>${esc(u.username)}</strong></td>
-      <td style="color:var(--text3)">${esc(u.email)}</td>
-      <td>◈ ${u.silver.toLocaleString()}</td>
-      <td>${wins} item${wins !== 1 ? 's' : ''}</td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick="adminAddSilver('${u.id}', 100)">+100 ◈</button>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function adminAddSilver(userId, amount) {
-  const users = getUsers();
-  const u = users.find(x => x.id === userId);
-  if (!u) return;
-  u.silver += amount;
-  saveUsers(users);
-  if (currentUser && currentUser.id === userId) { currentUser = u; localStorage.setItem('gacha_session', JSON.stringify({ id: u.id })); refreshSilver(); }
-  renderUsersTable();
-  notify(`Added ${amount} silver to ${u.username}.`, 'success');
-}
-
 function renderAdmin() {
   renderPool();
-  renderUsersTable();
-}
-
-// ================================================================
-//  SYNC USER
-// ================================================================
-
-function syncUser() {
-  if (!currentUser) return;
-  const users = getUsers();
-  const idx = users.findIndex(u => u.id === currentUser.id);
-  if (idx !== -1) { users[idx] = currentUser; saveUsers(users); }
 }
 
 // ================================================================
