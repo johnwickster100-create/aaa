@@ -4,8 +4,9 @@
 //  CONSTANTS
 // ================================================================
 
-// Relative path — works on any host/port because the backend serves the frontend
-const API            = '/api';
+// API base URL — set dynamically by /config.js which the backend serves.
+// Falls back to '/api' (relative) when accessed directly on port 3001.
+const API = window.GACHA_API || '/api';
 const SPIN_COST      = 50;
 const ADMIN_USERNAME = 'GodlyAncientChampion';
 
@@ -98,31 +99,37 @@ async function apiRequest(method, path, body) {
 
   const url = API + path;
   let res;
+
   try {
     res = await fetch(url, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
-  } catch (networkErr) {
-    console.error(`[fetch] ${method} ${url} → network error:`, networkErr);
-    throw new Error('Cannot reach the server. Is the backend running?');
+  } catch (err) {
+    // Network-level failure: server unreachable, DNS failure, or CORS preflight blocked.
+    console.error(`[api] ${method} ${url} — network error:`, err);
+    throw new Error(
+      `Network error: could not reach ${url}.\n` +
+      `Using API base: ${API}\n` +
+      `If this persists, open the browser console and check for CORS or connection errors.`
+    );
   }
 
   let data;
   try {
     data = await res.json();
-  } catch (parseErr) {
-    console.error(`[fetch] ${method} ${url} → non-JSON response (status ${res.status})`);
-    throw new Error('Unexpected server response (status ' + res.status + ').');
+  } catch {
+    console.error(`[api] ${method} ${url} — non-JSON response, status ${res.status}`);
+    throw new Error(`Server returned a non-JSON response (HTTP ${res.status}).`);
   }
 
   if (!res.ok) {
-    console.warn(`[fetch] ${method} ${url} → ${res.status}`, data);
-    throw new Error(data.error || 'Request failed.');
+    console.warn(`[api] ${method} ${url} — ${res.status}:`, data);
+    throw new Error(data.error || `Request failed (HTTP ${res.status}).`);
   }
 
-  console.debug(`[fetch] ${method} ${url} → ${res.status} OK`);
+  console.log(`[api] ${method} ${url} — ${res.status} OK`);
   return data;
 }
 
