@@ -423,12 +423,47 @@ function awardWin(item) {
 //  SHOP
 // ================================================================
 
-function purchaseSilver(amount, usd) {
+// Placeholder payment URL — replace with real payment endpoint when ready
+const PAYMENT_URL = 'https://payment.gacha.gg/checkout';
+
+// Pending purchase state
+let pendingPurchase = null;
+
+function initPurchase(silverAmount, priceLabel, usdCents) {
   if (!currentUser) { showModal('login'); return; }
-  currentUser.silver += amount;
+
+  pendingPurchase = { silverAmount, priceLabel, usdCents };
+
+  // Populate modal
+  document.getElementById('purchaseAmount').textContent = silverAmount.toLocaleString();
+  document.getElementById('purchasePrice').textContent  = priceLabel;
+
+  // Open payment tab
+  window.open(PAYMENT_URL + '?amount=' + usdCents + '&silver=' + silverAmount, '_blank');
+
+  // Show confirmation modal
+  showModal('confirmPurchase');
+}
+
+function confirmPurchase() {
+  if (!pendingPurchase) return;
+  if (!currentUser) { hideModal('confirmPurchase'); showModal('login'); return; }
+
+  currentUser.silver += pendingPurchase.silverAmount;
   syncUser();
   refreshSilver();
-  notify(`+ ${amount} Silver added! ($${usd}.00 charged)`, 'success');
+
+  const gained = pendingPurchase.silverAmount;
+  const price  = pendingPurchase.priceLabel;
+  pendingPurchase = null;
+
+  hideModal('confirmPurchase');
+  notify(`◈ +${gained.toLocaleString()} Silver added! (${price})`, 'success');
+}
+
+// Legacy alias kept in case anything calls it directly
+function purchaseSilver(amount, usd) {
+  initPurchase(amount, '$' + usd + '.00', usd * 100);
 }
 
 // ================================================================

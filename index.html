@@ -102,39 +102,65 @@
     <!-- ── SHOP VIEW ── -->
     <div class="view hidden" id="viewShop">
       <div class="shop-container">
-        <h2 class="section-title">Silver Shop</h2>
-        <p class="section-subtitle">1 USD ≈ 100 Silver. Purchase below to top up your balance.</p>
+        <h2 class="section-title">Buy Silver</h2>
+        <p class="section-subtitle">Top up your balance to keep playing. Bigger packs come with a <span class="bonus-highlight">+10% bonus</span>.</p>
 
-        <div class="packages-grid">
-          <div class="package-card" onclick="purchaseSilver(100,1)">
-            <div class="pkg-amount">◈ 100</div>
+        <div class="packages-grid shop-grid-5">
+
+          <div class="package-card" onclick="initPurchase(500,'$4.99',499)">
+            <div class="pkg-icon">◈</div>
+            <div class="pkg-amount">500</div>
             <div class="pkg-label">Silver</div>
-            <div class="pkg-price">$1.00</div>
-            <button class="btn btn-primary btn-full">Purchase</button>
+            <div class="pkg-price">$4.99</div>
+            <div class="pkg-bonus-placeholder"></div>
+            <button class="btn btn-primary btn-full">Buy Now</button>
           </div>
-          <div class="package-card featured" onclick="purchaseSilver(550,5)">
-            <div class="pkg-badge">Best Value</div>
-            <div class="pkg-amount">◈ 550</div>
+
+          <div class="package-card" onclick="initPurchase(2200,'$19.99',1999)">
+            <div class="pkg-bonus-tag">+10% Bonus</div>
+            <div class="pkg-icon">◈</div>
+            <div class="pkg-amount">2,200</div>
             <div class="pkg-label">Silver</div>
-            <div class="pkg-price">$5.00</div>
-            <button class="btn btn-primary btn-full">Purchase</button>
+            <div class="pkg-price">$19.99</div>
+            <div class="pkg-base-note">Base: 2,000 + 200 free</div>
+            <button class="btn btn-primary btn-full">Buy Now</button>
           </div>
-          <div class="package-card" onclick="purchaseSilver(1200,10)">
-            <div class="pkg-amount">◈ 1,200</div>
+
+          <div class="package-card featured" onclick="initPurchase(5500,'$49.99',4999)">
+            <div class="pkg-featured-badge">Best Value</div>
+            <div class="pkg-bonus-tag">+10% Bonus</div>
+            <div class="pkg-icon">◈</div>
+            <div class="pkg-amount">5,500</div>
             <div class="pkg-label">Silver</div>
-            <div class="pkg-price">$10.00</div>
-            <button class="btn btn-primary btn-full">Purchase</button>
+            <div class="pkg-price">$49.99</div>
+            <div class="pkg-base-note">Base: 5,000 + 500 free</div>
+            <button class="btn btn-primary btn-full">Buy Now</button>
           </div>
-          <div class="package-card" onclick="purchaseSilver(6500,50)">
-            <div class="pkg-amount">◈ 6,500</div>
+
+          <div class="package-card" onclick="initPurchase(11000,'$99.99',9999)">
+            <div class="pkg-bonus-tag">+10% Bonus</div>
+            <div class="pkg-icon">◈</div>
+            <div class="pkg-amount">11,000</div>
             <div class="pkg-label">Silver</div>
-            <div class="pkg-price">$50.00</div>
-            <button class="btn btn-primary btn-full">Purchase</button>
+            <div class="pkg-price">$99.99</div>
+            <div class="pkg-base-note">Base: 10,000 + 1,000 free</div>
+            <button class="btn btn-primary btn-full">Buy Now</button>
           </div>
+
+          <div class="package-card whale" onclick="initPurchase(110000,'$999.99',99999)">
+            <div class="pkg-bonus-tag spec-tag">+10% Bonus</div>
+            <div class="pkg-icon">◈</div>
+            <div class="pkg-amount">110,000</div>
+            <div class="pkg-label">Silver</div>
+            <div class="pkg-price">$999.99</div>
+            <div class="pkg-base-note">Base: 100,000 + 10,000 free</div>
+            <button class="btn btn-primary btn-full">Buy Now</button>
+          </div>
+
         </div>
 
-        <p class="shop-note">This is a demo — no real charges are made.</p>
-        <button class="btn btn-ghost" onclick="showView('slot')">← Back to Casino</button>
+        <p class="shop-note">Payments via PayPal, Credit Card, or Bitcoin/Crypto · Demo mode: purchase is simulated.</p>
+        <button class="btn btn-ghost shop-back-btn" onclick="showView('slot')">← Back to Casino</button>
       </div>
     </div><!-- /viewShop -->
 
@@ -266,6 +292,37 @@
         <button type="submit" class="btn btn-primary btn-full">Create Account</button>
         <p class="modal-switch">Have an account? <a href="#" onclick="switchModal('signup','login')">Login</a></p>
       </form>
+    </div>
+  </div>
+
+  <!-- ── CONFIRM PURCHASE MODAL ── -->
+  <div class="modal-overlay hidden" id="modalConfirmPurchase" onclick="overlayClose(event,'confirmPurchase')">
+    <div class="modal modal-purchase">
+      <div class="modal-header">
+        <h2>Complete Purchase</h2>
+        <button class="modal-close" onclick="hideModal('confirmPurchase')">✕</button>
+      </div>
+      <div class="purchase-info">
+        <div class="purchase-summary">
+          <span class="purchase-silver-icon">◈</span>
+          <span class="purchase-silver-amount" id="purchaseAmount"></span>
+          <span class="purchase-silver-label">Silver</span>
+        </div>
+        <div class="purchase-price-line">for <strong id="purchasePrice"></strong></div>
+      </div>
+      <p class="purchase-instructions">
+        A payment page has opened in a new tab.<br>
+        Complete your payment there, then click <strong>Confirm Payment</strong> below to receive your silver.
+      </p>
+      <div class="purchase-methods">
+        <span class="pay-method">PayPal</span>
+        <span class="pay-method">Credit Card</span>
+        <span class="pay-method">Bitcoin / Crypto</span>
+      </div>
+      <div class="purchase-actions">
+        <button class="btn btn-primary btn-full" onclick="confirmPurchase()">✓ Confirm Payment</button>
+        <button class="btn btn-ghost btn-full" onclick="hideModal('confirmPurchase')" style="margin-top:8px;">Cancel</button>
+      </div>
     </div>
   </div>
 
